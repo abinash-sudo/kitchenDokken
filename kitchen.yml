@@ -1,0 +1,45 @@
+driver:
+  name: dokken
+  privileged: true
+  chef_version: <%= ENV['CHEF_VERSION'] || 'current' %>
+  chef_license: accept-no-persist
+  api_retries: 3
+ 
+provisioner:
+  name: dokken
+ 
+transport:
+  name: dokken
+  login_command: podman
+ 
+verifier:
+  name: inspec
+ 
+platforms:
+- name: centos-8
+  driver:
+    image: dokken/centos-8
+    pid_one_command: /usr/lib/systemd/systemd
+    # intermediate_instructions:
+    # - RUN /usr/bin/yum install -y rubygems
+- name: ubuntu-22.04
+  driver:
+    image: dokken/ubuntu-22.04
+    pid_one_command: /bin/systemd
+    intermediate_instructions:
+    #- RUN /usr/bin/apt-get install -y rubygems
+    - RUN /usr/bin/apt-get update
+ 
+suites:
+- name: default
+  run_list:
+  - recipe[dokken_podman]
+  verifier:
+    inspec_tests:
+    - test/integration/default
+  lifecycle:
+    pre_create:
+    - podman create --name chef-<%= ENV['CHEF_VERSION'] || 'current' %>  --replace docker.io/chef/chef:<%= ENV['CHEF_VERSION'] || 'current' %> sh
+    - podman start chef-<%= ENV['CHEF_VERSION'] || 'current' %>
+    post_destroy:
+    - podman volume prune -f
